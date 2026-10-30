@@ -11,7 +11,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
         """
         The `authenticate` method is called on every request, regardless of
-        whether the endpoint requires authentication. 
+        whether the endpoint requires authentication.
 
         `authenticate` has two possible return values:
 
@@ -20,7 +20,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         this is when the request does not include a token in the
         headers.
 
-        2) `(user, token)` - We return a user/token combination when 
+        2) `(user, token)` - We return a user/token combination when
         authentication was successful.
 
         If neither of these two cases were met, that means there was an error.

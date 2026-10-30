@@ -7,7 +7,7 @@ class AuthenticationAppConfig(AppConfig):
     verbose_name = 'Authentication'
 
     def ready(self):
-        import conduit.apps.authentication.signals
+        import conduit.apps.authentication.signals  # noqa: F401
 
 # This is how we register our custom app config with Django. Django is smart
 # enough to look for the `default_app_config` property of each registered app
