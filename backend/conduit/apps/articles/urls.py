@@ -1,10 +1,13 @@
 from django.conf.urls import include, url
-
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    ArticleViewSet, ArticlesFavoriteAPIView, ArticlesFeedAPIView,
-    CommentsListCreateAPIView, CommentsDestroyAPIView, TagListAPIView
+    ArticlesFavoriteAPIView,
+    ArticlesFeedAPIView,
+    ArticleViewSet,
+    CommentsDestroyAPIView,
+    CommentsListCreateAPIView,
+    TagListAPIView,
 )
 
 router = DefaultRouter(trailing_slash=False)
@@ -18,7 +21,7 @@ urlpatterns = [
     url(r'^articles/(?P<article_slug>[-\w]+)/favorite/?$',
         ArticlesFavoriteAPIView.as_view()),
 
-    url(r'^articles/(?P<article_slug>[-\w]+)/comments/?$', 
+    url(r'^articles/(?P<article_slug>[-\w]+)/comments/?$',
         CommentsListCreateAPIView.as_view()),
 
     url(r'^articles/(?P<article_slug>[-\w]+)/comments/(?P<comment_pk>[\d]+)/?$',
