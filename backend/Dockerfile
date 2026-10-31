@@ -30,4 +30,6 @@ USER appuser
 
 EXPOSE ${APP_PORT}
 
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
+
 CMD ["sh", "-c", "exec gunicorn conduit.wsgi:application --bind 0.0.0.0:${APP_PORT}"]
