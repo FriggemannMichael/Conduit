@@ -71,6 +71,10 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
             }
         }
 
+        password = user_data.get('password')
+        if password:
+            serializer_data['password'] = password
+
         # Here is that serialize, validate, save pattern we talked about
         # before.
         serializer = self.serializer_class(
