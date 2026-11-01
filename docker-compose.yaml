@@ -1,0 +1,9 @@
+services:
+  db:
+    image: postgres:16-alpine
+
+  backend:
+    build: ./backend
+
+  frontend:
+    build: ./frontend
