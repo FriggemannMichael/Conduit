@@ -1,6 +1,8 @@
 services:
   db:
     image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-conduit}
       POSTGRES_USER: ${POSTGRES_USER:-conduit}
@@ -8,6 +10,8 @@ services:
 
   backend:
     build: ./backend
+    volumes:
+      - staticfiles:/app/staticfiles
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set in .env}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
@@ -20,5 +24,11 @@ services:
 
   frontend:
     build: ./frontend
+    volumes:
+      - staticfiles:/usr/share/nginx/static:ro
     ports:
       - "8282:80"
+
+volumes:
+  postgres_data:
+  staticfiles:
