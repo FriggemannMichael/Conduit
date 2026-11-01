@@ -1,3 +1,4 @@
+from django.templatetags.static import static
 from rest_framework import serializers
 
 from .models import Profile
@@ -18,7 +19,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         if obj.image:
             return obj.image
 
-        return 'https://static.productionready.io/images/smiley-cyrus.jpg'
+        return static('profiles/default-avatar.svg')
 
     def get_following(self, instance):
         request = self.context.get('request', None)
