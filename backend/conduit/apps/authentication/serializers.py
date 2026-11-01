@@ -116,7 +116,7 @@ class UserSerializer(serializers.ModelSerializer):
     # We want to get the `bio` and `image` fields from the related Profile
     # model.
     bio = serializers.CharField(source='profile.bio', read_only=True)
-    image = serializers.CharField(source='profile.image', read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -133,6 +133,8 @@ class UserSerializer(serializers.ModelSerializer):
         # `max_length` properties too, but that isn't the case for the token
         # field.
         read_only_fields = ('token',)
+    def get_image(self, obj):
+        return ProfileSerializer().get_image(obj.profile)
 
 
     def update(self, instance, validated_data):
