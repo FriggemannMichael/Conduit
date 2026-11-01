@@ -20,3 +20,5 @@ services:
 
   frontend:
     build: ./frontend
+    ports:
+      - "8282:80"
