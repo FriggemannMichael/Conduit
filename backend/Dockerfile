@@ -18,8 +18,8 @@ ENV VIRTUAL_ENV=/opt/venv \
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 RUN useradd --create-home appuser \
-    && mkdir /app \
-    && chown appuser:appuser /app
+    && mkdir -p /app/staticfiles \
+    && chown -R appuser:appuser /app
 
 WORKDIR /app
 
