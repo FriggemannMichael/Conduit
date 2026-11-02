@@ -44,14 +44,9 @@ class UserManager(BaseUserManager):
         they want.
         """
         import os
-        print('Reading superuser password from env')
-        SUPER_USER_PASSWORD = os.environ.get(
-            'DJANGO_SUPERUSER_PASSWORD', '')
-        if len(SUPER_USER_PASSWORD) >= 4:
-            password = SUPER_USER_PASSWORD
-        else:
-            print('Setting default password since no superuser password was provided.')
-            password = 'securepass'
+        password = os.environ.get('DJANGO_SUPERUSER_PASSWORD') or password
+        if not password:
+            raise TypeError('Superusers must have a password.')
 
         user = self.create_user(username, email, password)
         user.is_superuser = True
