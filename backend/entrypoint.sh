@@ -16,6 +16,12 @@ if [ -n "${POSTGRES_DB}" ]; then
 fi
 
 python manage.py migrate --noinput
+
+if [ -n "${DJANGO_SUPERUSER_EMAIL}" ] && [ -n "${DJANGO_SUPERUSER_PASSWORD}" ]; then
+    echo "Ensuring superuser ${DJANGO_SUPERUSER_EMAIL} exists ..."
+    python manage.py shell -c "import os; from django.contrib.auth import get_user_model; User = get_user_model(); email = os.environ['DJANGO_SUPERUSER_EMAIL']; User.objects.filter(email=email).exists() or User.objects.create_superuser(os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin'), email, os.environ['DJANGO_SUPERUSER_PASSWORD'])"
+fi
+
 python manage.py collectstatic --noinput
 
 exec "$@"

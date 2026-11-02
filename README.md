@@ -105,10 +105,15 @@ Compose reads these variables from `.env` in the repository root:
 | `POSTGRES_HOST`        | `db`                   | Host name of the database. `db` is the Compose service name.                                 |
 | `POSTGRES_PORT`        | `5432`                 | Port of the database inside the Compose network.                                             |
 | `CONDUIT_PORT`         | `8282`                 | Host port published by the `frontend` service.                                               |
+| `DJANGO_SUPERUSER_USERNAME` | `admin`           | User name of the optional superuser created on backend start.                                |
+| `DJANGO_SUPERUSER_EMAIL`    | empty              | Email of the optional superuser. No superuser is created while it is empty.                  |
+| `DJANGO_SUPERUSER_PASSWORD` | empty              | Password of the optional superuser. No superuser is created while it is empty.               |
 
 Only the `frontend` service publishes a port. To use another host port, set `CONDUIT_PORT` in `.env`, then use that port in the browser and in the VM firewall rules. The backend (`8000`) and the database (`5432`) are only reachable inside the Compose network.
 
 Postgres reads `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` only when the `postgres_data` volume is empty. Changing them later does not modify the existing database; set them **before the first start**.
+
+If `DJANGO_SUPERUSER_EMAIL` and `DJANGO_SUPERUSER_PASSWORD` are set, the backend entrypoint creates a superuser after the migrations, so you can log in at `http://<your_ip>:8282/admin/`. It is created only if no user with that email exists yet; changing the password in `.env` later does not update an existing superuser.
 
 ### Images and startup
 
