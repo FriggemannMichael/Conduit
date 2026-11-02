@@ -21,3 +21,7 @@ dist/
 
 # Exported container logs
 logs/
+
+# Local helper scripts
+deploy.sh
+runtest.sh
