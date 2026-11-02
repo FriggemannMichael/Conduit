@@ -104,8 +104,9 @@ Compose reads these variables from `.env` in the repository root:
 | `POSTGRES_PASSWORD`    | none, **required**     | Database password, used by the `db` service and the backend.                                 |
 | `POSTGRES_HOST`        | `db`                   | Host name of the database. `db` is the Compose service name.                                 |
 | `POSTGRES_PORT`        | `5432`                 | Port of the database inside the Compose network.                                             |
+| `CONDUIT_PORT`         | `8282`                 | Host port published by the `frontend` service.                                               |
 
-Only the `frontend` service publishes a port. To use another host port, change the left side of `8282:80` under `frontend.ports`, then use that port in the browser and in the VM firewall rules. The backend (`8000`) and the database (`5432`) are only reachable inside the Compose network.
+Only the `frontend` service publishes a port. To use another host port, set `CONDUIT_PORT` in `.env`, then use that port in the browser and in the VM firewall rules. The backend (`8000`) and the database (`5432`) are only reachable inside the Compose network.
 
 Postgres reads `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` only when the `postgres_data` volume is empty. Changing them later does not modify the existing database; set them **before the first start**.
 
@@ -264,6 +265,6 @@ The 33 pytest warnings are Django 1.10 deprecation notices and can be ignored.
 - **`Bad Request (400)` from the API:** The host name or IP in the browser is missing in `DJANGO_ALLOWED_HOSTS`. Add it to `.env` and run `docker compose up -d`.
 - **`502 Bad Gateway` right after the start:** The backend is still running migrations. Wait a few seconds and check `docker compose logs backend`.
 - **Changing database credentials does not take effect:** Postgres reads the initialization variables only for an empty data volume. Do not delete `postgres_data` to apply a change unless you intend to discard the database and have a backup.
-- **Port `8282` is unavailable:** Change the published host port in `docker-compose.yaml`, restart the setup, and use the new port in the browser and VM network rules.
+- **Port `8282` is unavailable:** Set another port in `CONDUIT_PORT` in `.env`, restart the setup, and use the new port in the browser and VM network rules.
 - **Conduit is unreachable on the VM:** Check `docker compose ps`, the logs, the published port, and the inbound firewall and cloud network rules.
 - **A container stays stopped after `docker kill` or `docker compose stop`:** That is a manual stop. Start it again with `docker compose up -d`.

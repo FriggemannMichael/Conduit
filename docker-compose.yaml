@@ -44,7 +44,7 @@ services:
     volumes:
       - staticfiles:/usr/share/nginx/static:ro
     ports:
-      - "8282:80"
+      - "${CONDUIT_PORT:-8282}:80"
 
 volumes:
   postgres_data:
