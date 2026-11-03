@@ -19,7 +19,9 @@ services:
 
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+    image: conduit-backend:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -40,7 +42,9 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+    image: conduit-frontend:latest
     restart: unless-stopped
     depends_on:
       - backend
