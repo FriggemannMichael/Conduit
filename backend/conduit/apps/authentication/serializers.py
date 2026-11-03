@@ -1,5 +1,4 @@
 from django.contrib.auth import authenticate
-
 from rest_framework import serializers
 
 from conduit.apps.profiles.serializers import ProfileSerializer
@@ -99,7 +98,7 @@ class LoginSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     """Handles serialization and deserialization of User objects."""
 
-    # Passwords must be at least 8 characters, but no more than 128 
+    # Passwords must be at least 8 characters, but no more than 128
     # characters. These values are the default provided by Django. We could
     # change them, but that would create extra work while introducing no real
     # benefit, so let's just stick with the defaults.
@@ -113,16 +112,16 @@ class UserSerializer(serializers.ModelSerializer):
     # so. Moreover, `UserSerializer` should never expose profile information,
     # so we set `write_only=True`.
     profile = ProfileSerializer(write_only=True)
-    
+
     # We want to get the `bio` and `image` fields from the related Profile
     # model.
     bio = serializers.CharField(source='profile.bio', read_only=True)
-    image = serializers.CharField(source='profile.image', read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = (
-            'email', 'username', 'password', 'token', 'profile', 'bio', 
+            'email', 'username', 'password', 'token', 'profile', 'bio',
             'image',
         )
 
@@ -130,10 +129,12 @@ class UserSerializer(serializers.ModelSerializer):
         # specifying the field with `read_only=True` like we did for password
         # above. The reason we want to use `read_only_fields` here is because
         # we don't need to specify anything else about the field. For the
-        # password field, we needed to specify the `min_length` and 
+        # password field, we needed to specify the `min_length` and
         # `max_length` properties too, but that isn't the case for the token
         # field.
         read_only_fields = ('token',)
+    def get_image(self, obj):
+        return ProfileSerializer().get_image(obj.profile)
 
 
     def update(self, instance, validated_data):
@@ -169,7 +170,7 @@ class UserSerializer(serializers.ModelSerializer):
             # We're doing the same thing as above, but this time we're making
             # changes to the Profile model.
             setattr(instance.profile, key, value)
-            
+
         # Save the profile just like we saved the user.
         instance.profile.save()
 

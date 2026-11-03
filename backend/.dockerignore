@@ -1,0 +1,28 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+.venv/
+venv/
+
+# Local data and build output
+**/*.sqlite3
+staticfiles/
+
+# Secrets
+.env
+.env.*
+
+# Git and tooling
+.git
+.gitignore
+.dockerignore
+.ruff_cache/
+.pytest_cache/
+
+# Not needed at runtime
+Dockerfile*
+tests/
+pytest.ini
+ruff.toml
+README.md
+project-logo.png

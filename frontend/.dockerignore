@@ -1,0 +1,14 @@
+# Dependencies, installed fresh by npm ci
+node_modules/
+
+# Build output and caches
+dist/
+.angular/
+
+# Git and hooks
+.git/
+.husky/
+
+# Secrets
+.env
+.env.*

@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    stop_grace_period: 2m
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-conduit}
+      POSTGRES_USER: ${POSTGRES_USER:-conduit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  backend:
+    build:
+      context: ./backend
+    image: conduit-backend:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - staticfiles:/app/staticfiles
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set in .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-conduit}
+      POSTGRES_USER: ${POSTGRES_USER:-conduit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+
+  frontend:
+    build:
+      context: ./frontend
+    image: conduit-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - staticfiles:/usr/share/nginx/static:ro
+    ports:
+      - "${CONDUIT_PORT:-8282}:80"
+
+volumes:
+  postgres_data:
+  staticfiles:

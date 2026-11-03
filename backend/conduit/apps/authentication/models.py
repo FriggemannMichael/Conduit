@@ -1,10 +1,11 @@
-import jwt
-
 from datetime import datetime, timedelta
 
+import jwt
 from django.conf import settings
 from django.contrib.auth.models import (
-    AbstractBaseUser, BaseUserManager, PermissionsMixin
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
 )
 from django.db import models
 
@@ -15,7 +16,7 @@ class UserManager(BaseUserManager):
     """
     Django requires that custom users define their own Manager class. By
     inheriting from `BaseUserManager`, we get a lot of the same code used by
-    Django to create a `User` for free. 
+    Django to create a `User` for free.
 
     All we have to do is override the `create_user` function which we will use
     to create `User` objects.
@@ -43,14 +44,9 @@ class UserManager(BaseUserManager):
         they want.
         """
         import os
-        print('Reading superuser password from env')
-        SUPER_USER_PASSWORD = os.environ.get(
-            'DJANGO_SUPERUSER_PASSWORD', '')
-        if len(SUPER_USER_PASSWORD) >= 4:
-            password = SUPER_USER_PASSWORD
-        else:
-            print('Setting default password since no superuser password was provided.')
-            password = 'securepass'
+        password = os.environ.get('DJANGO_SUPERUSER_PASSWORD') or password
+        if not password:
+            raise TypeError('Superusers must have a password.')
 
         user = self.create_user(username, email, password)
         user.is_superuser = True

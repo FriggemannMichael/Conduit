@@ -1,7 +1,5 @@
 import jwt
-
 from django.conf import settings
-
 from rest_framework import authentication, exceptions
 
 from .models import User
@@ -13,7 +11,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
         """
         The `authenticate` method is called on every request, regardless of
-        whether the endpoint requires authentication. 
+        whether the endpoint requires authentication.
 
         `authenticate` has two possible return values:
 
@@ -22,7 +20,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         this is when the request does not include a token in the
         headers.
 
-        2) `(user, token)` - We return a user/token combination when 
+        2) `(user, token)` - We return a user/token combination when
         authentication was successful.
 
         If neither of these two cases were met, that means there was an error.
@@ -33,7 +31,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         request.user = None
 
         # `auth_header` should be an array with two elements: 1) the name of
-        # the authentication header (in this case, "Token") and 2) the JWT 
+        # the authentication header (in this case, "Token") and 2) the JWT
         # that we should authenticate against.
         auth_header = authentication.get_authorization_header(request).split()
         auth_header_prefix = self.authentication_header_prefix.lower()
@@ -76,7 +74,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         """
         try:
             payload = jwt.decode(token, settings.SECRET_KEY)
-        except:
+        except Exception:
             msg = 'Invalid authentication. Could not decode token.'
             raise exceptions.AuthenticationFailed(msg)
 

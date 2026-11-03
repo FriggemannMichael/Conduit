@@ -7,6 +7,6 @@ class ArticlesAppConfig(AppConfig):
     verbose_name = 'Articles'
 
     def ready(self):
-        import conduit.apps.articles.signals
+        import conduit.apps.articles.signals  # noqa: F401
 
 default_app_config = 'conduit.apps.articles.ArticlesAppConfig'

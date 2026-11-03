@@ -5,9 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .renderers import UserJSONRenderer
-from .serializers import (
-    LoginSerializer, RegistrationSerializer, UserSerializer
-)
+from .serializers import LoginSerializer, RegistrationSerializer, UserSerializer
 
 
 class RegistrationAPIView(APIView):
@@ -72,6 +70,10 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
                 'image': user_data.get('image', request.user.profile.image)
             }
         }
+
+        password = user_data.get('password')
+        if password:
+            serializer_data['password'] = password
 
         # Here is that serialize, validate, save pattern we talked about
         # before.

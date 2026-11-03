@@ -1,0 +1,85 @@
+name: Check and deploy Conduit
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+
+  quality:
+    uses: ./.github/workflows/quality.yml
+
+  deploy:
+    name: Deploy to VM
+    needs: [ build, quality ]
+    if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop') }}
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Prepare SSH key
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          install -m 700 -d "${HOME}/.ssh"
+          printf '%s\n' "${VM_SSH_KEY}" > "${HOME}/.ssh/deploy_key"
+          chmod 600 "${HOME}/.ssh/deploy_key"
+
+      - name: Verify SSH connection
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          ssh-keyscan -T 10 -H "${VM_HOST}" >> "${HOME}/.ssh/known_hosts"
+          ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" 'echo "SSH connection established"'
+
+      - name: Check environment file on VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
+            'test -f "${HOME}/conduit/.env" || { echo "Missing ${HOME}/conduit/.env on the VM, create it from .env.example first" >&2; exit 1; }'
+
+      - name: Copy project to VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          set -euo pipefail
+          tar --exclude='./.git' -czf - . |
+            ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
+              'mkdir -p "${HOME}/conduit" && tar -xzf - -C "${HOME}/conduit"'
+
+      - name: Start stack on VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
+            'cd "${HOME}/conduit" && docker compose up --detach --build --wait'
+
+      - name: Check deployed application
+        timeout-minutes: 3
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+        run: |
+          for ATTEMPT in {1..30}; do
+            echo "Checking deployed application (attempt ${ATTEMPT}/30)"
+            if curl --fail --silent --show-error --output /dev/null "http://${VM_HOST}:8282/" \
+              && curl --fail --silent --show-error --output /dev/null "http://${VM_HOST}:8282/api/tags"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Deployed application did not respond on port 8282" >&2
+          exit 1
