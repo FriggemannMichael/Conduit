@@ -209,7 +209,7 @@ The slim Python image has no `kill` command, so the backend uses Python instead.
 
 The VM needs Docker with the Compose plugin and an inbound rule for TCP port `8282`. Create a **VM-local** `.env` once in the deployment folder (`~/conduit`), based on `.env.example`, with new random secrets and `<VM_IP>` in `DJANGO_ALLOWED_HOSTS`. This file is never overwritten by a deployment.
 
-The workflow `.github/workflows/deploy.yml` deploys automatically on every push to `main` and can also be started manually. It first runs the CI and quality workflows, then copies the repository to the VM over SSH, runs `docker compose up -d --build --wait` there, and checks that `/` and `/api/tags` answer on port `8282`. It uses the GitHub environment `production` with these secrets:
+The workflow `.github/workflows/deployment.yaml` deploys automatically on every push to `main` and can also be started manually. It first runs the CI and quality workflows, then copies the repository to the VM over SSH, runs `docker compose up -d --build --wait` there, and checks that `/` and `/api/tags` answer on port `8282`. It uses the GitHub environment `production` with these secrets:
 
 | Secret       | Content                                                              |
 |--------------|----------------------------------------------------------------------|
@@ -254,7 +254,7 @@ The 33 pytest warnings are Django 1.10 deprecation notices and can be ignored.
 
 - **CI workflow** (`.github/workflows/ci.yml`): on pushes to `develop` and pull requests to `main`, lints the backend with ruff, runs pytest in the dev image, and runs a full Compose smoke test (build, start, check `/` and `/api/tags`, verify that gunicorn is running).
 - **Quality workflow** (`.github/workflows/quality.yml`): lints all workflows with actionlint and scans the repository for leaked secrets with Gitleaks.
-- **Deploy workflow** (`.github/workflows/deploy.yml`): deploys to the VM over SSH after CI and quality pass (see [Deployment](#deployment)).
+- **Deploy workflow** (`.github/workflows/deployment.yaml`): deploys to the VM over SSH after CI and quality pass (see [Deployment](#deployment)).
 - **Backend image hardening:** non-root user, database wait in the entrypoint, automatic migrations and `collectstatic`, `.env` variables required by Compose (`${VAR:?}`) instead of insecure defaults.
 - **Single public port:** nginx reverse proxy for `/api/`, `/admin/`, and `/static/`; the backend and database are not published.
 - **Fixes in the upstream code** that were needed for a working application:
