@@ -1,6 +1,6 @@
 # Conduit with Docker Compose
 
-This repository containerizes the Conduit application, a Medium-like blogging platform. It consists of an Angular 17 frontend served by nginx, a Django 1.10.5 REST backend served by gunicorn, and a PostgreSQL 16 database. Docker Compose builds and runs all three services, keeps database data in a named volume, restarts the containers after an unexpected exit, and publishes only port `8282` to the outside world.
+This repository containerizes the Conduit application, a Medium-like blogging platform. It consists of an Angular 17 frontend served by nginx, a Django 1.10.5 REST backend served by gunicorn, and a PostgreSQL 16 database. Docker Compose builds and runs all three services, keeps database data in a named volume, restarts the containers after an unexpected exit, and publishes only port `8282` to the outside world. GitHub Actions builds both application images, pushes them to the GitHub Container Registry (GHCR), and deploys them to a cloud VM over SSH, so the VM never builds anything itself.
 
 ## Table of contents
 
@@ -105,6 +105,7 @@ Compose reads these variables from `.env` in the repository root:
 | `POSTGRES_HOST`        | `db`                   | Host name of the database. `db` is the Compose service name.                                 |
 | `POSTGRES_PORT`        | `5432`                 | Port of the database inside the Compose network.                                             |
 | `CONDUIT_PORT`         | `8282`                 | Host port published by the `frontend` service.                                               |
+| `IMAGE_TAG`            | `latest`               | Tag of the GHCR images for `backend` and `frontend`: `latest` or a commit SHA.               |
 | `DJANGO_SUPERUSER_USERNAME` | `admin`           | User name of the optional superuser created on backend start.                                |
 | `DJANGO_SUPERUSER_EMAIL`    | empty              | Email of the optional superuser. No superuser is created while it is empty.                  |
 | `DJANGO_SUPERUSER_PASSWORD` | empty              | Password of the optional superuser. No superuser is created while it is empty.               |
@@ -119,8 +120,10 @@ If `DJANGO_SUPERUSER_EMAIL` and `DJANGO_SUPERUSER_PASSWORD` are set, the backend
 
 Both Dockerfiles use multi-stage builds to keep the final images small:
 
-- **Frontend:** `node:20-alpine` installs the dependencies with `npm ci` and builds the Angular app. Only the build output is copied into `nginx:1.27-alpine`, which listens on port `80`.
+- **Frontend:** `node:20-alpine` installs the dependencies with `npm ci --include=dev` (the Angular CLI is a dev dependency, while `NODE_ENV=production` is set) and builds the Angular app. Only the build output is copied into `nginx:1.27-alpine`, which listens on port `80`.
 - **Backend:** a builder stage installs the Python dependencies into a virtual environment with `uv`. The runtime stage copies only that environment and the application code, runs as the non-root user `appuser`, and exposes port `8000` (`APP_PORT`).
+
+Compose names the images `ghcr.io/friggemannmichael/conduit-backend:${IMAGE_TAG}` and `ghcr.io/friggemannmichael/conduit-frontend:${IMAGE_TAG}`. With `--build`, they are built locally from `./backend` and `./frontend`; without `--build`, Compose uses a local image or pulls it from GHCR. The packages are public, so no registry login is needed.
 
 nginx is the single entry point. It serves the Angular app, forwards `/api/` and `/admin/` to `backend:8000` with the original `Host` header (so `DJANGO_ALLOWED_HOSTS` works), and serves the Django static files from the shared `staticfiles` volume at `/static/`. The frontend therefore calls the API with the relative path `/api`, and no backend URL has to be configured.
 
@@ -209,13 +212,27 @@ The slim Python image has no `kill` command, so the backend uses Python instead.
 
 The VM needs Docker with the Compose plugin and an inbound rule for TCP port `8282`. Create a **VM-local** `.env` once in the deployment folder (`~/conduit`), based on `.env.example`, with new random secrets and `<VM_IP>` in `DJANGO_ALLOWED_HOSTS`. This file is never overwritten by a deployment.
 
-The workflow `.github/workflows/deployment.yaml` deploys automatically on every push to `main` and can also be started manually. It first runs the CI and quality workflows, then copies the repository to the VM over SSH, runs `docker compose up -d --build --wait` there, and checks that `/` and `/api/tags` answer on port `8282`. It uses the GitHub environment `production` with these secrets:
+The workflow `.github/workflows/deployment.yaml` runs on every push to `main` and `develop` and can also be started manually. It stops with an error as soon as one step fails:
+
+1. **build** and **quality:** the CI and quality workflows (see [Extras](#extras-for-the-reviewers)).
+2. **publish:** builds both images on the GitHub runner and pushes them to GHCR, tagged with the commit SHA and `latest`. It logs in with the automatic `GITHUB_TOKEN`, so no extra secret is needed.
+3. **deploy:** opens an SSH connection to the VM, checks that `~/conduit/.env` exists, copies only `docker-compose.yaml` to `~/conduit`, and runs `docker compose pull` and `docker compose up --detach --no-build --wait` with `IMAGE_TAG` set to the commit SHA. Finally it checks that `/` and `/api/tags` answer on port `8282`.
+
+The VM therefore needs neither the source code nor build tools. The workflow uses the GitHub environment `production` with these secrets:
 
 | Secret       | Content                                                              |
 |--------------|----------------------------------------------------------------------|
 | `VM_HOST`    | `<VM_IP>` or host name of the VM.                                    |
 | `VM_USER`    | SSH user on the VM. The user must be a member of the `docker` group. |
 | `VM_SSH_KEY` | Private key of a dedicated deploy key without a passphrase.          |
+
+To run or roll back to a specific version on the VM, set the commit SHA of a previous run and start the stack again:
+
+```bash
+cd ~/conduit
+export IMAGE_TAG=<commit_sha>
+docker compose pull && docker compose up -d --no-build --wait
+```
 
 Visit `http://<VM_IP>:8282` and verify registration, navigation, persistence after a restart, and automatic container recovery. Local data is **not** transferred to the VM.
 
@@ -252,9 +269,9 @@ The 33 pytest warnings are Django 1.10 deprecation notices and can be ignored.
 
 ## Extras for the reviewers
 
-- **CI workflow** (`.github/workflows/ci.yml`): on pushes to `develop` and pull requests to `main`, lints the backend with ruff, runs pytest in the dev image, and runs a full Compose smoke test (build, start, check `/` and `/api/tags`, verify that gunicorn is running).
-- **Quality workflow** (`.github/workflows/quality.yml`): lints all workflows with actionlint and scans the repository for leaked secrets with Gitleaks.
-- **Deploy workflow** (`.github/workflows/deployment.yaml`): deploys to the VM over SSH after CI and quality pass (see [Deployment](#deployment)).
+- **CI workflow** (`.github/workflows/ci.yml`): called by the deployment workflow and run on pull requests to `main`; lints the backend with ruff, runs pytest in the dev image, and runs a full Compose smoke test (build, start, check `/` and `/api/tags`, verify that gunicorn is running).
+- **Quality workflow** (`.github/workflows/quality.yml`): called by the deployment workflow and run on pull requests to `main`; lints all workflows with actionlint and scans the repository for leaked secrets with Gitleaks.
+- **Deploy workflow** (`.github/workflows/deployment.yaml`): builds and pushes the images to GHCR after CI and quality pass, then deploys them to the VM over SSH by pulling, without building on the VM (see [Deployment](#deployment)).
 - **Backend image hardening:** non-root user, database wait in the entrypoint, automatic migrations and `collectstatic`, `.env` variables required by Compose (`${VAR:?}`) instead of insecure defaults.
 - **Single public port:** nginx reverse proxy for `/api/`, `/admin/`, and `/static/`; the backend and database are not published.
 - **Fixes in the upstream code** that were needed for a working application:
