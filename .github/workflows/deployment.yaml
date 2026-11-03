@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -16,10 +17,40 @@ jobs:
   quality:
     uses: ./.github/workflows/quality.yml
 
+  publish:
+    name: Build and push images
+    needs: [ build, quality ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Build and push images
+        run: |
+          set -euo pipefail
+          IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/conduit"
+          for SERVICE in backend frontend; do
+            IMAGE="${IMAGE_PREFIX}-${SERVICE}"
+            docker build \
+              --tag "${IMAGE}:${GITHUB_SHA}" \
+              --tag "${IMAGE}:latest" \
+              --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+              "./${SERVICE}"
+            docker push --all-tags "${IMAGE}"
+          done
+
   deploy:
     name: Deploy to VM
-    needs: [ build, quality ]
-    if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop') }}
+    needs: [ publish ]
     runs-on: ubuntu-24.04
     environment: production
     steps:
