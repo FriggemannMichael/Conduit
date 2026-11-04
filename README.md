@@ -216,7 +216,7 @@ The workflow `.github/workflows/deployment.yaml` runs on every push to `main` an
 
 1. **build** and **quality:** the CI and quality workflows (see [Extras](#extras-for-the-reviewers)).
 2. **publish:** builds both images on the GitHub runner and pushes them to GHCR, tagged with the commit SHA and `latest`. It logs in with the automatic `GITHUB_TOKEN`, so no extra secret is needed.
-3. **deploy:** opens an SSH connection to the VM, writes the `ENV_FILE` secret to `~/conduit/.env`, copies only `docker-compose.yaml` to `~/conduit`, and runs `docker compose pull` and `docker compose up --detach --no-build --wait` with `IMAGE_TAG` set to the commit SHA. Finally it checks that `/` and `/api/tags` answer on port `8282`.
+3. **deploy:** opens an SSH connection to the VM, writes the `ENV_FILE` secret to `~/conduit/.env`, copies only `docker-compose.yaml` to `~/conduit`, and runs `docker compose pull` and `docker compose up --detach --no-build --wait --remove-orphans` with `IMAGE_TAG` set to the commit SHA. Finally it checks that `/` and `/api/tags` answer on port `8282`.
 
 The VM therefore needs neither the source code nor build tools. The workflow uses the GitHub environment `production` with these secrets:
 

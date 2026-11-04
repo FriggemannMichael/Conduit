@@ -85,7 +85,7 @@ jobs:
             ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
               'mkdir -p "${HOME}/conduit" && umask 077 && cat > "${HOME}/conduit/.env"'
 
-      - name: Copy project to VM
+      - name: Copy Compose file to VM
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
@@ -100,7 +100,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
-          "cd conduit && export IMAGE_TAG=${IMAGE_TAG} && docker compose pull && docker compose up --detach --no-build --wait"
+          "cd conduit && export IMAGE_TAG=${IMAGE_TAG} && docker compose pull && docker compose up --detach --no-build --wait --remove-orphans"
 
       - name: Check deployed application
         timeout-minutes: 3
