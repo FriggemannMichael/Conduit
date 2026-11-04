@@ -210,13 +210,13 @@ The slim Python image has no `kill` command, so the backend uses Python instead.
 
 ### Deployment
 
-The VM needs Docker with the Compose plugin and an inbound rule for TCP port `8282`. Create a **VM-local** `.env` once in the deployment folder (`~/conduit`), based on `.env.example`, with new random secrets and `<VM_IP>` in `DJANGO_ALLOWED_HOSTS`. This file is never overwritten by a deployment.
+The VM needs Docker with the Compose plugin and an inbound rule for TCP port `8282`. Store the complete content of the VM's `.env` in the GitHub secret `ENV_FILE`, based on `.env.example`, with new random secrets and `<VM_IP>` in `DJANGO_ALLOWED_HOSTS`. Every deployment overwrites `~/conduit/.env` with this secret, so change values in the secret and deploy again instead of editing the file on the VM. Keep `POSTGRES_PASSWORD` unchanged once the database exists, because Postgres only applies it when the volume is created.
 
-The workflow `.github/workflows/deployment.yaml` runs on every push to `main` and `develop` and can also be started manually.A push to `develop` only runs the checks; a push to `main` or a manual run from `develop` also publishes the images and deploys them. It stops with an error as soon as one step fails:
+The workflow `.github/workflows/deployment.yaml` runs on every push to `main` and `develop` and can also be started manually. A push to `develop` only runs the checks; a push to `main` or a manual run from `develop` also publishes the images and deploys them. It stops with an error as soon as one step fails:
 
 1. **build** and **quality:** the CI and quality workflows (see [Extras](#extras-for-the-reviewers)).
 2. **publish:** builds both images on the GitHub runner and pushes them to GHCR, tagged with the commit SHA and `latest`. It logs in with the automatic `GITHUB_TOKEN`, so no extra secret is needed.
-3. **deploy:** opens an SSH connection to the VM, checks that `~/conduit/.env` exists, copies only `docker-compose.yaml` to `~/conduit`, and runs `docker compose pull` and `docker compose up --detach --no-build --wait` with `IMAGE_TAG` set to the commit SHA. Finally it checks that `/` and `/api/tags` answer on port `8282`.
+3. **deploy:** opens an SSH connection to the VM, writes the `ENV_FILE` secret to `~/conduit/.env`, copies only `docker-compose.yaml` to `~/conduit`, and runs `docker compose pull` and `docker compose up --detach --no-build --wait` with `IMAGE_TAG` set to the commit SHA. Finally it checks that `/` and `/api/tags` answer on port `8282`.
 
 The VM therefore needs neither the source code nor build tools. The workflow uses the GitHub environment `production` with these secrets:
 
@@ -225,6 +225,7 @@ The VM therefore needs neither the source code nor build tools. The workflow use
 | `VM_HOST`    | `<VM_IP>` or host name of the VM.                                    |
 | `VM_USER`    | SSH user on the VM. The user must be a member of the `docker` group. |
 | `VM_SSH_KEY` | Private key of a dedicated deploy key without a passphrase.          |
+| `ENV_FILE`   | Complete content of the `.env` file for the VM.                      |
 
 To run or roll back to a specific version on the VM, set the commit SHA of a previous run and start the stack again:
 
@@ -237,7 +238,7 @@ docker compose pull && docker compose up -d --no-build --wait
 Visit `http://<VM_IP>:8282` and verify registration, navigation, persistence after a restart, and automatic container recovery. Local data is **not** transferred to the VM.
 
 > [!CAUTION]
-> Port `8282` serves plain HTTP. Keep real passwords, SSH keys, tokens, user names, IP addresses, and other sensitive VM details out of this repository. Store them in the VM-local `.env` or in GitHub secrets.
+> Port `8282` serves plain HTTP. Keep real passwords, SSH keys, tokens, user names, IP addresses, and other sensitive VM details out of this repository. Store them in GitHub secrets or in a local, untracked `.env`.
 
 ### Backend development
 
