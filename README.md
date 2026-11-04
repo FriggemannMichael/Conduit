@@ -212,7 +212,7 @@ The slim Python image has no `kill` command, so the backend uses Python instead.
 
 The VM needs Docker with the Compose plugin and an inbound rule for TCP port `8282`. Create a **VM-local** `.env` once in the deployment folder (`~/conduit`), based on `.env.example`, with new random secrets and `<VM_IP>` in `DJANGO_ALLOWED_HOSTS`. This file is never overwritten by a deployment.
 
-The workflow `.github/workflows/deployment.yaml` runs on every push to `main` and `develop` and can also be started manually. It stops with an error as soon as one step fails:
+The workflow `.github/workflows/deployment.yaml` runs on every push to `main` and `develop` and can also be started manually.A push to `develop` only runs the checks; a push to `main` or a manual run from `develop` also publishes the images and deploys them. It stops with an error as soon as one step fails:
 
 1. **build** and **quality:** the CI and quality workflows (see [Extras](#extras-for-the-reviewers)).
 2. **publish:** builds both images on the GitHub runner and pushes them to GHCR, tagged with the commit SHA and `latest`. It logs in with the automatic `GITHUB_TOKEN`, so no extra secret is needed.
