@@ -21,7 +21,7 @@ services:
   backend:
     build:
       context: ./backend
-    image: conduit-backend:latest
+    image: ghcr.io/friggemannmichael/conduit-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -44,7 +44,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    image: conduit-frontend:latest
+    image: ghcr.io/friggemannmichael/conduit-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - backend

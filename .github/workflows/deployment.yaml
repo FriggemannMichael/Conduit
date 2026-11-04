@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -16,10 +17,41 @@ jobs:
   quality:
     uses: ./.github/workflows/quality.yml
 
-  deploy:
-    name: Deploy to VM
+  publish:
+    name: Build and push images
     needs: [ build, quality ]
     if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Build and push images
+        run: |
+          set -euo pipefail
+          IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/conduit"
+          for SERVICE in backend frontend; do
+            IMAGE="${IMAGE_PREFIX}-${SERVICE}"
+            docker build \
+              --tag "${IMAGE}:${GITHUB_SHA}" \
+              --tag "${IMAGE}:latest" \
+              --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+              "./${SERVICE}"
+            docker push --all-tags "${IMAGE}"
+          done
+
+  deploy:
+    name: Deploy to VM
+    needs: [ publish ]
     runs-on: ubuntu-24.04
     environment: production
     steps:
@@ -42,31 +74,33 @@ jobs:
           ssh-keyscan -T 10 -H "${VM_HOST}" >> "${HOME}/.ssh/known_hosts"
           ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" 'echo "SSH connection established"'
 
-      - name: Check environment file on VM
+      - name: Write environment file on VM
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
         run: |
-          ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
-            'test -f "${HOME}/conduit/.env" || { echo "Missing ${HOME}/conduit/.env on the VM, create it from .env.example first" >&2; exit 1; }'
-
-      - name: Copy project to VM
-        env:
-          VM_HOST: ${{ secrets.VM_HOST }}
-          VM_USER: ${{ secrets.VM_USER }}
-        run: |
-          set -euo pipefail
-          tar --exclude='./.git' -czf - . |
+          test -n "${ENV_FILE}" || { echo "Secret ENV_FILE is empty or missing" >&2; exit 1; }
+          printf '%s\n' "${ENV_FILE}" |
             ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
-              'mkdir -p "${HOME}/conduit" && tar -xzf - -C "${HOME}/conduit"'
+              'mkdir -p "${HOME}/conduit" && umask 077 && cat > "${HOME}/conduit/.env"'
+
+      - name: Copy Compose file to VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          scp -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes \
+          docker-compose.yaml "${VM_USER}@${VM_HOST}:conduit/docker-compose.yaml"
 
       - name: Start stack on VM
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           ssh -i "${HOME}/.ssh/deploy_key" -o BatchMode=yes "${VM_USER}@${VM_HOST}" \
-            'cd "${HOME}/conduit" && docker compose up --detach --build --wait'
+          "cd conduit && export IMAGE_TAG=${IMAGE_TAG} && docker compose pull && docker compose up --detach --no-build --wait --remove-orphans"
 
       - name: Check deployed application
         timeout-minutes: 3
